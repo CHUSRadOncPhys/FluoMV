@@ -1,0 +1,46 @@
+#Utiliser le symbole "#" pour écrure des commentaires. Ne pas utiliser de "TAB" pour séparer les commentaires de la ligne, seulement des espaces
+debug[int]=0                    #Pour définir le mode de debug. 0 pour normal, 1 pour debug, 2 pour debug détaillé, 3 quand on écrit trop de trucs, 10 et plus pour des modes spéciaux non-définis ici
+timestamp[int]=1		#0 : pour l'horloge fiable pour 49 jours (résolution 10 à 16 ms). 
+                            #1 : pour l'horloge précise (fréquence processeur), possibilité que le thread change de processeur
+use_iView[bool]=1               #Mettre à 0 pour ne pas connecter et enregistrer les images iView
+use_iCOM[bool]=1                #Si use-iCOM est à faut, alors les triggers ne sont pas utilisés. Seul le timer est prix en compte pour démarrer ou arrêter.
+ip_iCOM=192.168.30.2            #Adresse IP de connection. Aux postes iView: 192.168.30.2 ;
+acquisition_name=acq            #prefixe des fichiers iCOM et iView enregistrés
+acquisition_path=C:\EPID\EPID_Listening\       #Chemin menant à l'Endroit où le logiciel crée son arborrescence d'enregistrement
+acquisition_timout_sec[int]=1200  #Durée maximale des acquisitions. Peut importe les StopTrigger, le logiciel arrête après ce timeout
+iCOM_summary_only[bool]=0       #0 pour enregistrer l'entièreté de chaque acquisition iCOM dans un fichier en plus du résumé. 1 pour n'avoir que le résumé.
+iCOM_use_start_acquisition_trigger[bool]=1  #Mettre à 1 pour démarrer le logiciel à pause, mettre à 0 pour démarrer l'acquisition dès le programme lancé.
+iCOM_tag_list_in_summary[bool]=1            #Pour enregistrer des tags dans le résumé, mettre cette valeur à 1.
+iCOMsavingPathMode[int]=0       #Default = 0 :  \ID\date_time\iCOM
+                                #1 : \ID\date\iCOM
+                                #2 : \date_time\iCOM
+                                #3 : \date\iCOM
+                                #4 : \iCOM\
+                                #5 : \
+
+#Liste des tags à inclure dans le iCOM summary si iCOM_tag_list_in_summary == 1
+iCOMSetSummaryTagList[longHexa,str]=0x50010007,R;0x50010006,R;0x70010007,P;0x70010008,R;0x70010001,P;0x50010003,R
+
+#Les triggers de démarrage, de pause d'enregistrement et d'arrêt du logiciel sont définis ici.
+#Pour définir un trigger d'un linac State, utiliser les valeurs [int,bool,None,None,int] Pour [LinacState,trig on ValueChange, None, None, TriggerType = 1]
+#Pour définir un trigger d'un linac Function, utiliser les valeurs [int,bool,None,None,int] Pour [LinacFunction,trig on ValueChange, None, None, TriggerType = 2]
+#Pour définir un trigger d'un tag, utiliser les valeurs [str,bool,longHexa,str,int] Pour [Valeur du tag,trig on ValueChange, tag number (hexadecimal), Tag part (P,R ou S), TriggerType = 0]
+iCOMSetStartTriggerList[int,bool,None,None,int]+=10,0,None,None,1                     #linac state 10 = "SEGMENT PAUSE"
+iCOMSetStartTriggerList[int,bool,None,None,int]+=8,0,None,None,1                      #linac state 8 = "SEGMENT RESTART"
+iCOMSetStartTriggerList[int,bool,None,None,int]+=4,0,None,None,1                      #linac state 4 = "SEGMENT START"
+iCOMSetStartTriggerList[int,bool,None,None,int]+=5,0,None,None,1                      #linac state 5 = "SEGMENT IRRADIATE"
+#iCOMSetStartTriggerList[int,bool,None,None,int]+=83,false,None,None,3                 #S key
+iCOMSetStartTriggerList[int,bool,None,None,int]+=127,false,None,None,3                 #127 "F16"
+
+
+iCOMSetPauseTriggerList[int,bool,None,None,int]+=13,0,None,None,1                     #linac state 13 = "FIELD TERMINATED"
+iCOMSetPauseTriggerList[int,bool,None,None,int]+=7,0,None,None,1                      #linac state 7 = "SEGMENT INTERREPTED" (quand on appuie sur le bouton jaune)
+#iCOMSetPauseTriggerList[int,bool,None,None,int]+=80,false,None,None,3                 #P key
+iCOMSetPauseTriggerList[int,bool,None,None,int]+=128,false,None,None,3                 #128 "F17"
+
+
+iCOMSetStopTriggerList[int,bool,None,None,int]+=255,0,None,None,2                     #linac function 255 = rien ?
+#iCOMSetStopTriggerList[str,bool,longHexa,str,int]+=20150710,false,0x70010002,P,0      #tag:0x70010002 & part:P correspond au numéro de dossier du patient
+#iCOMSetStopTriggerList[int,bool,None,None,int]+=27,false,None,None,3                  #27 correspond a la touche "Esc"
+iCOMSetStopTriggerList[int,bool,None,None,int]+=129,false,None,None,3                  #129 correspond a la touche "F18"
+
