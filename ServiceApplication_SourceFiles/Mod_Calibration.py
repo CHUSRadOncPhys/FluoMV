@@ -1,10 +1,9 @@
 from datetime import datetime
 import numpy as np
 import os, os.path
-from matplotlib import pyplot as plt
+#~ from matplotlib import pyplot as plt
 import sys
 #~ import scipy.signal
-#~ import Settings
 import shutil
 #========================================================================================================
 class Calibration:
@@ -28,8 +27,8 @@ class Calibration:
 		self.MLGSlopes = None #3D array [bin-level,1024,1024] dtype=float32
 		
 		#****Functions****
-		self.ClearLogs()
-		self.MyLog("__init__","end of init")
+		#~ self.ClearLogs()
+		#~ self.MyLog("__init__","end of init",level=2)
 #--------------------------------------------------------------------------------------------------------------------------------------------
 	def ClearLogs(self):
 		try:
@@ -37,10 +36,11 @@ class Calibration:
 		except:
 			pass
 #--------------------------------------------------------------------------------------------------------------------------------------------
-	def MyLog(self,mess="none",value="none"):
-		f = open(os.path.join(self.SettingsObj.ROOTPATH,"Logs","Mod_Calibration.log"),"a")
-		f.write(str(mess)+"\t"+str(value)+"\t"+str(datetime.now())+"\n")
-		f.close()
+	def MyLog(self,mess="none",value="none",level=0):
+		if level<=self.SettingsObj.debugLvl:
+			f = open(os.path.join(self.SettingsObj.ROOTPATH,"Logs","Mod_Calibration.log"),"a")
+			f.write(str(mess)+"\t"+str(value)+"\t"+str(datetime.now())+"\n")
+			f.close()
 #-----------------------------------------------------------------------------------------------------------------------------
 	def DefineBackground(self,thisFilePathList):
 		BGFrames = np.zeros((len(thisFilePathList),1024,1024),np.uint16)
@@ -73,7 +73,6 @@ class Calibration:
 				thisList.append(os.path.join(self.ROOTPATH,l))
 				els = l.split(".raw")
 				dr = els[0].replace("DR","")
-				#dr = dr.replace(".bin","")
 				self.LevelList.append(float(dr))
 
 		self.MLG = np.zeros((len(self.LevelList),1024,1024),dtype=np.float32)
@@ -110,7 +109,7 @@ class Calibration:
 		self.Residual = self.Residual.reshape(1024,1024)
 		
 		self.LinearMask[self.Residual >=0.999] =  1
-		self.MyLog("LoadFiles","Completed")
+		self.MyLog("LoadFiles","Completed",level=0)
 
 #----------------------------------------------------------------------------------------------------------------------------
 	def LMSRegression(self,thisEnergy):
@@ -174,9 +173,9 @@ class Calibration:
 		rvalue = np.sqrt(rvalue)
 		rvalue.tofile(os.path.join(self.SettingsObj.ROOTPATH,thisEnergy,"Residual.raw"))
 #----------------------------------------------------------------------------------------------------------------------------
-	def GetLevelTemporalMedian(self,thisFilePathList,thisDoseRate,thisEnergy):
+	def GetLevelTemporalMedian(self,thisFilePathList,thisDoseRate,thisEnergy):#Compute the median image for each dose rate level used for gain calibration
 		self.LevelList.append(thisDoseRate)
-		self.MyLog("GetLevelTemporalMedian: this level dose rate",str(thisDoseRate))
+		self.MyLog("GetLevelTemporalMedian: this level dose rate",str(thisDoseRate),level=0)
 		Nb = len(thisFilePathList)
 		if len(thisFilePathList)>	100:
 			Nb = 100
@@ -186,7 +185,7 @@ class Calibration:
 			im = np.fromfile(thisFilePathList[k],np.uint16)
 			im = im.reshape(1024,1024)
 			Frames[k] = im
-			self.MyLog("GetLevelTemporalMedian:",thisFilePathList[k])
+			self.MyLog("GetLevelTemporalMedian:",thisFilePathList[k],level=2)
 		
 		LevelMedian = np.median(Frames,axis=0) - self.BackgroundFrame
 		#~ print LevelMedian.shape, type(LevelMedian[0,0])
@@ -198,18 +197,11 @@ class Calibration:
 		LevelMedian.tofile(os.path.join(self.SettingsObj.ROOTPATH,thisEnergy,"DR"+str(int(thisDoseRate))+".raw"))
 #----------------------------------------------------------------------------------------------------------------------------
 	def CalibrateFrame(self,thisFilePath):
-		self.MyLog("CalibrateFrame",thisFilePath)
-		#head,tail = os.path.split(thisFilePath)
+		self.MyLog("CalibrateFrame",thisFilePath,level=2)
 		A = np.fromfile(thisFilePath,dtype=np.uint16)
 		A = A.reshape(1024,1024)
-		#print A[512,512], self.BackgroundFrame[512,512]
-		#A = A-self.BackgroundFrame 
-		#print A[512,512]
+
 		self.FrameCalibrated = np.multiply(np.subtract(A,self.BackgroundFrame),self.Slope) + self.Offset
-		#print A[512,512],self.Slope[512,512],self.Offset[512,512]
-		#print self.FrameCalibrated[512,512]
-		#self.FrameCalibrated = scipy.signal.medfilt(self.FrameCalibrated,(3,3))
-		#print self.FrameCalibrated[512,512]
 
 		#Spatial Median 3x3
 		self.MedianArray3D[0,1:1023,1:1023] = self.FrameCalibrated[0:1022,0:1022]
@@ -236,44 +228,23 @@ class Calibration:
 
 		self.ImCount = self.ImCount + 1
 
-		#~ plt.imshow(self.FrameCalibrated)
-		#~ plt.show()
-		#print type(self.FrameCalibrated[512,512])
-		#self.FrameCalibrated = self.FrameCalibrated.astype(np.float32)
-		#self.FrameCalibrated.tofile(os.path.join(self.SettingsObj.ROOTPATH,tail+".raw"))
-		
-		#~ mask = np.less(A,self.MLG[0]).astype(float)
-		
-		#~ for k in range(0,5):
-			#~ D1 = np.less(A,self.MLG[k]).astype(float)
-			#~ print A[512,512],self.MLG[k,512,512],D1[512,512]
-			#~ print D1[0,0].astype(float)
-			#~ plt.imshow(D1)
-			#~ plt.show()
 #----------------------------------------------------------------------------------------------------------------------------------------------------
 	def InitNewFlexmap(self):
 		self.GantryAngleList = list()
 		self.YIsoList = list()
 		self.XIsoList = list()
+		self.RotationDirection = 'none'
 #-----------------------------------------------------------------------------------------------------------------------------------------------------
 	def GetFlexmapDirection(self):
-		if self.GantryAngleList[25] < self.GantryAngleList[50]:
+		if len(self.GantryAngleList)>50 and self.GantryAngleList[25] < self.GantryAngleList[50]:
+			self.RotationDirection ='Clockwise'
 			return "CW"
-		elif self.GantryAngleList[25] > self.GantryAngleList[50]:
+		elif len(self.GantryAngleList)>50 and self.GantryAngleList[25] > self.GantryAngleList[50]:
+			self.RotationDirection ='Counter Clockwise'
 			return "CCW"
 		else:
+			self.RotationDirection ='none'
 			return "None"
-#----------------------------------------------------------------------------------------------------------------------------------------------------
-	#~ def DeleteOldFlexmap(self):
-		#~ success = True
-		#~ FileList = ["Panel.flexmap","Panel_CW.flexmap","Panel_CCW.flexmap"]
-		#~ for fname in FileList:		
-			#~ if os.path.isfile(os.path.join(self.SettingsObj.ROOTPATH,"CalibrationFiles",fname)):
-				#~ try:
-					#~ os.remove(os.path.join(self.SettingsObj.ROOTPATH,"CalibrationFiles",fname))
-				#~ except:
-					#~ success = False
-		#~ return success
 #-------------------------------------------------------------------------------------------------------------------------------------------------
 	def DeleteOldGainCalibration(self,thisEnergy):
 		success = True
@@ -385,7 +356,7 @@ class Calibration:
 
 		self.UpdateAverageFlexmap()
 
-		return success
+		return success,dir
 #-------------------------------------------------------------------------------------------------------------------------------------------
 	def CommitGainCalibration(self,thisEnergy):
 		success = True
@@ -398,22 +369,4 @@ class Calibration:
 		shutil.move(os.path.join(self.SettingsObj.ROOTPATH,thisEnergy),os.path.join(self.SettingsObj.ROOTPATH,"CalibrationFiles",thisEnergy))
 
 		return success
-#===================================================================================================================
-if __name__ == "__main__":
-	ROOTPATH = os.path.join('C:\\EPID','CalibrationFiles','6MV')
-	A = Calibration()
-	A.LoadFiles(ROOTPATH)
-#	sys.exit()
-	
-	BGList = list()
-	thisFilePath = os.path.join('C:\EPID\EPID_Listening\unknown\\2020-02-05_14-31-03\image','acq00000.bin')
-	BGList.append(thisFilePath)
-	thisFilePath = os.path.join('C:\EPID\EPID_Listening\unknown\\2020-02-05_14-31-03\image','acq00001.bin')
-	BGList.append(thisFilePath)
-	thisFilePath = os.path.join('C:\EPID\EPID_Listening\unknown\\2020-02-05_14-31-03\image','acq00002.bin')
-	BGList.append(thisFilePath)
-	A.DefineBackground(BGList)
-	thisFilePath = os.path.join('C:\EPID\EPID_Listening\unknown\\2030-11-26_18-26-21\image','acq00050.bin')
-	A.CalibrateFrame(thisFilePath)
-	
-	
+#===================================================================================================================	

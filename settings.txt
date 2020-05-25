@@ -1,8 +1,7 @@
-ip_iCOM=192.168.30.2     
 root_path=C:\EPID
 roi_path=
 SavePNG=False
 SaveRAW=False
-DebugLevel=0
+DebugLevel=1
 EqualizeHistogram=True
 ImageTimeOffset=0

@@ -30,7 +30,7 @@ class AcquisitionManager:
 		self.XIsoList = list()
 
 		#****functions *****
-		self.ClearLogs()
+		#~ self.ClearLogs()
 		self.GetActiveCalibrations()
 		if self.FlexmapDT is not None:
 			self.GetFlexmapData()
@@ -102,6 +102,7 @@ class AcquisitionManager:
 				for m in MeasureList:
 					thisPath2 = os.path.join(thisPath,m)
 					#print thisPath2
+					self.MyLog("FindMostRecentMeasurementFolder"+str(m),str(LastDT),level=2)
 					if os.path.isdir(thisPath2):
 						folderelement = m.split("_")
 						dateelement = folderelement[0].split("-")
@@ -113,7 +114,7 @@ class AcquisitionManager:
 							LastDT = thisDateTime
 							#print "LastDT",LastDT
 
-		self.MyLog("self.FindMostRecentMeasurementFolder:",self.MeasurementFolderPath,level=0)
+		self.MyLog("self.FindMostRecentMeasurementFolder:",self.MeasurementFolderPath,level=1)
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	def ResetLists(self): #Reset lists: self.ImageFilePathListBefore, self.ImageFilePathListAfter, self.NewImageFilePathList, self.NewImageTSList
 		self.ImageFilePathListBefore = list()

@@ -34,7 +34,7 @@ import Mod_ViewManager
 class MyFrame1 ( wx.Frame ):
 	
 	def __init__( self, parent,settingsObj ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = "CINE-MV SERVICE APPLICATION", pos = wx.DefaultPosition, size = wx.Size( 810,800 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = "FLUO-MV SERVICE APPLICATION", pos = wx.DefaultPosition, size = wx.Size( 810,800 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 		
 		self.settingsObj = settingsObj
 		self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
@@ -47,30 +47,48 @@ class MyFrame1 ( wx.Frame ):
 	def __del__( self ):
 		pyautogui.press('f18')
 		pass
-	
+
+	def MyLog(self,mess="none",value="none",level=0):
+		if level<=self.settingsObj.debugLvl:
+			f = open(os.path.join(self.settingsObj.ROOTPATH,"Logs","Service.log"),"a")
+			f.write(str(mess)+"\t"+str(value)+"\t"+str(datetime.now())+"\n")
+			f.close()
+
 	def OnFrameClose(self,e):
 		pyautogui.press('f18')
 		time.sleep(1)
 		pyautogui.press('f18')
 		
 	
-		if self.settingsObj.debugLvl < 2 :
+		if self.settingsObj.debugLvl <= 2 :
 			folder = os.path.join(self.settingsObj.ROOTPATH,"EPID_Listening")
-			for the_file in os.listdir(folder):
-				file_path = os.path.join(folder, the_file)
-				try:
-					if os.path.isfile(file_path):
-						os.unlink(file_path)
-					elif os.path.isdir(file_path): shutil.rmtree(file_path)
-				except Exception as e:
-					print(e)
+			
+			AllFiles = os.listdir(folder)
+			mess = "Deleting Acquisitions ..."
+			Nb = len(AllFiles)
+			if Nb>0:				
+				dialog = wx.ProgressDialog("Service", mess, Nb, style=wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE) 
+				count=0
+
+				for the_file in AllFiles:
+					file_path = os.path.join(folder, the_file)
+					try:
+						if os.path.isdir(file_path)==True:
+							shutil.rmtree(file_path)
+						if os.path.isfile(file_path)==True:
+							os.remove(file_path)
+					except:
+						self.MyLog("OnFrameClose except:",the_file)
+						pass
+					count+=1
+					dialog.Update(count)
+				dialog.Destroy()
 				
 		self.Destroy()
 
 ###########################################################################
 ## Class MyPanel1
 ###########################################################################
-
 class MyPanel1 ( wx.Panel ):
 	
 	def __init__( self, parent,settingsObj ):
@@ -108,7 +126,7 @@ class MyPanel1 ( wx.Panel ):
 		
 		self.GainCalibListCtrl = wx.ListCtrl( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,style = wx.LC_REPORT )
 		self.GainCalibListCtrl.InsertColumn(0, 'Energy', width = 60) 
-		self.GainCalibListCtrl.InsertColumn(1, 'Last saved date', wx.LIST_FORMAT_LEFT, 150) 
+		self.GainCalibListCtrl.InsertColumn(1, 'Last saved date', wx.LIST_FORMAT_LEFT, 200) 
 		
 		for i in self.AcquisitionManagerObj.ActiveCalibrationDTList: #ActiveCalibrationDTList is a list of tuple
 			index = self.GainCalibListCtrl.InsertItem(sys.maxint, i[0]) 
@@ -183,12 +201,12 @@ class MyPanel1 ( wx.Panel ):
 		bSizer10.AddSpacer(0)
 		
 		self.SagCalibListCtrl = wx.ListCtrl( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,style = wx.LC_REPORT )
-		self.SagCalibListCtrl.InsertColumn(0, 'Last saved date', wx.LIST_FORMAT_LEFT, 150) 	
+		self.SagCalibListCtrl.InsertColumn(0, 'Last saved date', wx.LIST_FORMAT_LEFT, 175) 	
 		if self.AcquisitionManagerObj.FlexmapDT is not None:
 			self.SagCalibListCtrl.InsertItem(sys.maxint,self.AcquisitionManagerObj.FlexmapDT)
 
-		self.SagCalibListCtrl.SetMinSize((150,100))
-		self.SagCalibListCtrl.SetMaxSize((150,100))
+		self.SagCalibListCtrl.SetMinSize((175,100))
+		self.SagCalibListCtrl.SetMaxSize((175,100))
 		bSizer10.Add(self.SagCalibListCtrl, 0, wx.ALL, 5 )
 		
 		
@@ -233,6 +251,7 @@ class MyPanel1 ( wx.Panel ):
 		self.FigureAxes_CNN = self.Figure_CNN.add_subplot(111)
 		self.FigureAxes_CNN.plot(self.AcquisitionManagerObj.GantryList,self.AcquisitionManagerObj.YIsoList,'k',label='Crossline')
 		self.FigureAxes_CNN.plot(self.AcquisitionManagerObj.GantryList,self.AcquisitionManagerObj.XIsoList,'r',label='Inline')
+		self.FigureAxes_CNN.set_title("Average CW and CC Iso Position on the Panel")
 		self.FigureAxes_CNN.set_xlabel("GANTRY ANGLE")
 		self.FigureAxes_CNN.set_ylabel("BB POSITION (Pixels)")
 		self.FigureAxes_CNN.legend()
@@ -251,12 +270,9 @@ class MyPanel1 ( wx.Panel ):
 		
 		sbSizer1.AddSpacer(0)
 		
-		
 		bSizer9.Add( sbSizer1, 1, wx.EXPAND, 5 )
 		
-		
 		bSizer9.AddSpacer(0)
-		
 		
 		bSizer1.Add( bSizer9, 1, wx.EXPAND, 5 )
 		
@@ -271,8 +287,6 @@ class MyPanel1 ( wx.Panel ):
 		self.BackgroundButton2.Bind( wx.EVT_BUTTON, self.OnRefreshBackground )
 		self.StartButton2.Bind( wx.EVT_BUTTON, self.OnStartSagCalibration )
 		self.StopButton2.Bind( wx.EVT_BUTTON, self.OnStopSagCalibration )
-
-		#self.SagCalibListCtrl.Bind(wx.EVT_LIST_ITEM_SELECTED,self.OnSagListSelection)
 
 
 		if self.settingsObj.debugLvl!=2079:
@@ -290,15 +304,19 @@ class MyPanel1 ( wx.Panel ):
 		
 		if len(self.CalibObj.GantryAngleList)>5:
 			try:
+				self.CalibObj.GetFlexmapDirection()
 				self.FigureAxes_CNN.clear()
 				self.FigureAxes_CNN.plot(self.CalibObj.GantryAngleList,self.CalibObj.YIsoList,'k',label='Crossline')
 				self.FigureAxes_CNN.plot(self.CalibObj.GantryAngleList,self.CalibObj.XIsoList,'r',label='Inline')
+				if self.CalibObj.RotationDirection!='none':
+					self.FigureAxes_CNN.set_title("Iso Position on the Panel " + str(self.CalibObj.RotationDirection))
 				self.FigureAxes_CNN.set_xlabel("GANTRY ANGLE")
 				self.FigureAxes_CNN.set_ylabel("BB POSITION (Pixels)")
 				self.FigureAxes_CNN.legend(loc='best')
 				self.FigureAxes_CNN.grid(True,which='both',axis='both',linestyle='--',color='lightgrey')
 				self.FigureCanvas_CNN.draw()
 			except:
+				self.MyLog("update plot","except",level=1)
 				pass
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 	def LaunchProgressDialog(self,NbSec,mess="Background acquisition in Progress ..."): #Progress bar
@@ -344,6 +362,24 @@ class MyPanel1 ( wx.Panel ):
 			thisViewObj = Mod_ViewManager.ViewManager(self.AcquisitionManagerObj.MeasurementFolderPath,self.settingsObj)
 			self.AcquisitionManagerObj.ImageFilePathListAfter = list(thisViewObj.FrameFilePathList) #list() mean thisList.copy()
 			rtn = self.AcquisitionManagerObj.FindNewImages(list(thisViewObj.TimeStampList),NbMin=3)
+			
+			if rtn == False:
+				mess="Forcing Background acquisition ..."
+				NbSec = 2
+				dialog = wx.ProgressDialog("Service", mess, NbSec, style=wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE ) 
+				for b in range(0,2):
+					pyautogui.press('f16') #Start acquisition trigger
+					dialog.Update(b)
+					time.sleep(5)
+					pyautogui.press('f17') #Pause acquisition
+				dialog.Destroy()
+				self.AcquisitionManagerObj.FindMostRecentMeasurementFolder()
+				if self.AcquisitionManagerObj.MeasurementFolderPath is not None:
+					thisViewObj = Mod_ViewManager.ViewManager(self.AcquisitionManagerObj.MeasurementFolderPath,self.settingsObj)
+					self.AcquisitionManagerObj.ImageFilePathListAfter = list(thisViewObj.FrameFilePathList) #list() mean thisList.copy()
+					rtn = self.AcquisitionManagerObj.FindNewImages(list(thisViewObj.TimeStampList),NbMin=3)
+
+
 			if rtn == True:
 				self.AcquisitionManagerObj.DefineBackgroundFiles()
 				if widget.GetId() == 1:
@@ -424,8 +460,10 @@ class MyPanel1 ( wx.Panel ):
 				self.GainCalibListCtrl.DeleteAllItems()
 				for i in self.AcquisitionManagerObj.ActiveCalibrationDTList: #ActiveCalibrationDTList is a list of tuple
 					index = self.GainCalibListCtrl.InsertItem(sys.maxint, i[0]) 
-					self.GainCalibListCtrl.SetItem(index, 1, i[1]) 
-					
+					self.GainCalibListCtrl.SetItem(index, 1, i[1])
+
+				wx.MessageBox('A new Pixel Gain Calibration for energy ' + str(thisEnergy) +" was saved" , 'INFORMATION',wx.OK | wx.ICON_INFORMATION)
+
 		self.BackgroundButton1.Enable()
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	def OnStartSagCalibration(self,evt):
@@ -466,22 +504,29 @@ class MyPanel1 ( wx.Panel ):
 					self.IcomObj = Mod_IcomManager.IcomManager(self.AcquisitionManagerObj.MeasurementFolderPath,self.settingsObj)	
 					
 				if np.max(self.AcquisitionManagerObj.NewImageTSList)>self.IcomObj.TimeStampMax:
+					#~ self.MyLog("SagMonitoring","np.max",level=3)
 					time.sleep(2)
 					self.IcomObj.Update()
 					
+				#~ self.MyLog("SagMonitoring,Before incr2=0",str(len(self.AcquisitionManagerObj.NewImageFilePathList)),level=3)
 				incr =0
 				for im in self.AcquisitionManagerObj.NewImageFilePathList:
 					rtn2 = self.IcomObj.GetFrameInfo(self.AcquisitionManagerObj.NewImageTSList[incr]) #rtn2[0] = boolean, rtn2[1] = index des listes Icom.
+					#~ self.MyLog("SagMonitoring rtn2=",str(rtn2),level=3)
 					if rtn2[0]==True:						
 						if self.LastEnergy==None:
 							self.CalibObj.LoadFiles(os.path.join(self.settingsObj.ROOTPATH,'CalibrationFiles',self.IcomObj.EnergyList[rtn2[1]]))
-							self.CalibObj.DefineBackground(self.AcquisitionManagerObj.BackgroundFilePathList)
+							#~ self.CalibObj.DefineBackground(self.AcquisitionManagerObj.BackgroundFilePathList)
 							self.LastEnergy = self.IcomObj.EnergyList[rtn2[1]]
-
+							self.WaitTime = 0.5
+							#~ self.MyLog("SagMonitoring","LastEnergy=None",level=3)
+						
 						if self.IcomObj.DoseRateList[rtn2[1]]>350 and abs(self.IcomObj.GantryAngleList[rtn2[1]])<180.0:
 							OverRotation = False
+							#~ self.MyLog("SagMonitoring","OverRotation=False",level=3)
 							if len(self.CalibObj.GantryAngleList)>0 and abs(self.IcomObj.GantryAngleList[rtn2[1]]-self.CalibObj.GantryAngleList[-1])>50:
 								OverRotation = True
+								#~ self.MyLog("SagMonitoring","OverRotation=True",level=3)
 							if OverRotation == False:
 								self.CalibObj.CalibrateFrame(im)
 								bbx,bby = self.FlexmapObj.Execute(self.CalibObj.FrameCalibrated)
@@ -489,37 +534,46 @@ class MyPanel1 ( wx.Panel ):
 								self.CalibObj.YIsoList.append(bby)
 								self.CalibObj.XIsoList.append(bbx)
 
-						if incr % 10==0:
+						if len(self.CalibObj.YIsoList)>0 and len(self.CalibObj.YIsoList) % 10==0:
 							self.UpdateFlexmapPlot()
+							#~ self.MyLog("SagMonitoring UpdateFlexmapPlot  len(self.CalibObj.YIsoList)=",str(len(self.CalibObj.YIsoList)),level=3)
 					incr = incr +1
 
 				self.AcquisitionManagerObj.ImageFilePathListBefore = self.AcquisitionManagerObj.ImageFilePathListBefore + self.AcquisitionManagerObj.NewImageFilePathList
 				self.AcquisitionManagerObj.NewImageFilePathList = list()
 				self.AcquisitionManagerObj.NewImageTSList = list()
-		
+				#~ self.MyLog("SagMonitoring","End of function",level=3)
+				
 		def launchMonitoring():
 			self.IcomObj = None
 			self.LastEnergy = None
 			self.CalibObj = Mod_Calibration.Calibration(self.settingsObj)
 			self.CalibObj.InitNewFlexmap() #Reset GantryList, YIsoList,XIsoList
+			self.CalibObj.DefineBackground(self.AcquisitionManagerObj.BackgroundFilePathList) 
 			self.FlexmapObj = Mod_FlexmapImage.FlexmapImage(self.settingsObj)
 			self.ti = None
 			self.tf = None
-
+			self.WaitTime = 0.5
+			#~ self.MyLog("launchMonitoring","Before while",level=2)
+			
 			while self.AcquisitionManagerObj.State == "Acquisition":
-				time.sleep(0.5)
+				time.sleep(self.WaitTime)
 				#print "Sag Monitoring ..."
 				SagMonitoring()
-				self.UpdateFlexmapPlot()
+				#~ self.UpdateFlexmapPlot()
 
 			SagMonitoring()
-			rnt = self.CalibObj.CommitFlexmap()
+			self.UpdateFlexmapPlot()
+			
+			rnt,dir = self.CalibObj.CommitFlexmap()
 			self.AcquisitionManagerObj.GetActiveCalibrations()
 			self.SagCalibListCtrl.DeleteAllItems()
 			if self.AcquisitionManagerObj.FlexmapDT is not None:
 				self.SagCalibListCtrl.InsertItem(sys.maxint,self.AcquisitionManagerObj.FlexmapDT)
 			self.SagCalibListCtrl.SetMaxSize((150,50))
 			self.tf=time.clock()
+			if rnt==True:
+				wx.MessageBox('A new Panel Position Correction Table ' + str(dir) +" was saved" , 'INFORMATION',wx.OK | wx.ICON_INFORMATION)
 			#print "End of Sag Acquisition"
 			#print self.tf-self.ti
 
@@ -544,38 +598,36 @@ class MyPanel1 ( wx.Panel ):
 			except:
 				pass
 
-				
-		tl = threading.Thread(target = launch)
-		tl.start()
-		
-		self.LaunchProgressDialog(5,mess="Starting PyComView ....")
-		self.BackgroundButton1.Enable()
+		if os.path.isfile(os.path.join(self.settingsObj.ROOTPATH,"PyComView","dist","main.exe"))==True:
+			
+			tl = threading.Thread(target = launch)
+			tl.start()
+			self.LaunchProgressDialog(5,mess="Starting PyComView ....")
+			self.BackgroundButton1.Enable()
+		else:
+			wx.MessageBox('Cannot found the application: PyComView', 'INFORMATION',wx.OK | wx.ICON_INFORMATION)
+			
 #--------------------------------------------------------------------------------------------------------------
 	def MyLog(self,mess="none",value="none",level=0):
 		if level<=self.settingsObj.debugLvl:
-			f = open(os.path.join(self.settingsObj.ROOTPATH,"Logs","Service.log"),"a")
+			f = open(os.path.join(self.settingsObj.ROOTPATH,"Logs","ServiceApplication.log"),"a")
 			f.write(str(mess)+"\t"+str(value)+"\t"+str(datetime.now())+"\n")
 			f.close()
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 	def ClearLogs(self):
-		try:
-			os.remove(os.path.join(self.settingsObj.ROOTPATH,"Logs","Service.log"))
-		except:
-			pass
-		try:
-			os.remove(os.path.join(self.settingsObj.ROOTPATH,"Logs","Mod_IcomManager.log"))
-		except:
-			pass
-		try:
-			os.remove(os.path.join(self.settingsObj.ROOTPATH,"Logs","Mod_Calibration.log"))
-		except:
-			pass
+
+		AllLogFiles = os.listdir(os.path.join(self.settingsObj.ROOTPATH,"Logs"))
+		for f in AllLogFiles:
+			if f!="Settings.log":            
+				try:
+					os.remove(os.path.join(self.settingsObj.ROOTPATH,"Logs",f))
+				except:
+					pass            
 
 #===============================================================================================================================================        
 class RunApp(wx.App):
 	def __init__(self):
 		wx.App.__init__(self, redirect=False)
-		
 
 	def OnInit(self):
 		S = Settings.Settings()

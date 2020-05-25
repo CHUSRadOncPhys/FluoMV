@@ -4,24 +4,25 @@ from datetime import datetime
 class Settings:
 	def __init__(self):
 
-		self.MyLog("__init__",str(os.getcwd()))
-		self.LoadSettings()
+		self.ClearLogs()
+		self.LoadSettings() #Load the parameter in "C:\EPID","settings.txt"
 		self.CreateFolders()
+		self.MyLog("__init__",str(os.getcwd()),level=2)
 #--------------------------------------------------------------------------------------------------------------------------------------------
 	def ClearLogs(self):
-		try:
-			os.remove(os.path.join("C:\EPID","Settings.log"))
-		except:
-			pass
+		fpath = os.path.join("C:\EPID","Logs","Settings.log")
+		if os.path.isfile(fpath)==True:        
+			try:
+				os.remove(fpath)
+			except:
+				pass
 #--------------------------------------------------------------------------------------------------------------------------------------------
-	def MyLog(self,mess="none",value="none"):
-		
-		if os.path.isdir(os.path.join("C:\EPID","Logs"))==False:
-			os.mkdir(os.path.join("C:\EPID","Logs"))
-		
-		f = open(os.path.join("C:\EPID","Logs","Settings.log"),"a")
-		f.write(str(mess)+"\t"+str(value)+"\t"+str(datetime.now())+"\n")
-		f.close()
+	def MyLog(self,mess="none",value="none",level=0):
+			
+		if level<=self.debugLvl:
+			f = open(os.path.join("C:\EPID","Logs","Settings.log"),"a")
+			f.write(str(mess)+"\t"+str(value)+"\t"+str(datetime.now())+"\n")
+			f.close()
 #-----------------------------------------------------------------------------------------------------------------------------------------------
 	def CreateFolders(self):
 		if os.path.isdir(os.path.join(self.ROOTPATH,"CalibrationFiles"))==False:
@@ -59,7 +60,7 @@ class Settings:
 			dict[vars[0]] = vars[1]
 		
 		self.ROOTPATH = dict["root_path"] 
-		self.ROIPATH = dict["roi_path"]
+		self.debugLvl = int(dict["DebugLevel"])
 		
 		if dict["SavePNG"]=="True":
 			self.SAVEPNG = True
@@ -71,4 +72,3 @@ class Settings:
 		else:
 			self.SAVERAW = False
 
-		self.debugLvl = int(dict["DebugLevel"])

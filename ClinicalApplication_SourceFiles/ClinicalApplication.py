@@ -16,8 +16,9 @@ import pickle
 #~ from matplotlib import pyplot as plt
 import shutil
 import subprocess
-import PIL
-#~ from PIL import Image
+#~ import PIL
+#~ import PIL.Image
+from PIL import Image
 
 
 from ctypes import util
@@ -33,7 +34,7 @@ import Mod_AcquisitionManager
 class MyFrame1 ( wx.Frame ):
 	
 	def __init__( self, parent,DebugLvl,settingsObj ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = "CINE-MV CLINICAL APPLICATION", pos = wx.DefaultPosition, size = wx.Size( 900,800 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = "FLUO-MV CLINICAL APPLICATION", pos = wx.DefaultPosition, size = wx.Size( 900,800 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 		self.DebugLvl = DebugLvl
 		self.ClearLogs()
 		self.SettingsObj = settingsObj
@@ -105,7 +106,11 @@ class MyPanel1 ( wx.Panel ):
 		self.PrescriptionList = list()
 		self.Threshold = 175
 		self.DisplayedImCount = 0
-		
+		self.TimeTravelActivated = False
+		self.PNGFileList = list()
+		self.PNGIndex = None
+
+	
 		self.Controller = Module_Controller.Controller(self.SettingsObj)
 		self.AcquisitionManagerObj = Mod_AcquisitionManager.AcquisitionManager(self.SettingsObj)
 		
@@ -196,10 +201,16 @@ class MyPanel1 ( wx.Panel ):
 		s = wx.Size(300,30)
 		self.m_slider1 = wx.Slider( self, wx.ID_ANY, self.Threshold,1, 255, wx.DefaultPosition, s, wx.SL_HORIZONTAL|wx.SL_AUTOTICKS ) #Level
 		self.m_slider1.Bind(wx.EVT_SLIDER,self.OnSliderScroll)
-
 		bSizer5h.Add( self.m_slider1, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 		self.cb1 = wx.CheckBox(self,wx.ID_ANY,label="Invert")
 		bSizer5h.Add( self.cb1, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+
+		self.m_textCtrl2 = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_READONLY|wx.TE_CENTRE)
+		self.m_textCtrl2.SetMinSize( wx.Size( 100,25 ) )
+		self.m_textCtrl2.SetValue(str(self.DisplayedImCount))
+
+		bSizer5h.Add( self.m_textCtrl2, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5 )
+
 		bSizer5.Add(bSizer5h, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALL, 2 )
 		
 		#bSizer5.Add( self.m_slider1, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALL, 2 )
@@ -229,12 +240,30 @@ class MyPanel1 ( wx.Panel ):
 
 		self.m_choice1.Disable()
 		
-		#self.Bind(wx.EVT_MOUSEWHEEL,self.OnMouseWheel)
+		self.Bind(wx.EVT_MOUSEWHEEL,self.OnMouseWheel)
 		
 		self.SetSizer( bSizer1 )
 		self.Layout()
 	
+#-----------------------------------------------------------------------------------------------------------------
+	def OnMouseWheel(self, event=None):
+		NbPNG=  len(self.PNGFileList)
+		
+		if self.TimeTravelActivated==True and NbPNG>5 and self.PNGIndex!=None:
+			
+			if event.GetWheelRotation()<0 and self.PNGIndex>0:
+				self.PNGIndex += -1
 
+			if event.GetWheelRotation()>0 and self.PNGIndex<(NbPNG-1):
+				self.PNGIndex += 1
+
+			self.m_textCtrl2.SetValue(str(self.PNGIndex+1) + "/" + str(NbPNG))
+			try:
+				thisIm = Image.open(self.PNGFileList[self.PNGIndex])
+				self.MyOpenGL.CurrentGLIm = np.flipud(np.array(thisIm))
+				self.MyOpenGL.OnIDLE()
+			except:
+				pass
 
 #------------------------------------------------------------------------------------------------------------------------------------------		
 	def __del__( self ):
@@ -274,7 +303,13 @@ class MyPanel1 ( wx.Panel ):
 		AllPNGFiles = os.listdir(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG"))
 		AllRAWFiles = os.listdir(os.path.join(self.SettingsObj.ROOTPATH,"SaveRaw"))
 
+		mess = "Transfering images ..."
+		Nb = len(AllPNGFiles) + len(AllRAWFiles)
+
 		if len(AllPNGFiles)>2 or len(AllRAWFiles)>2 and self.CurrentPatientID!='none' and self.CurrentPatientID!='ID':
+			
+			dialog = wx.ProgressDialog("Clinical", mess, Nb, style=wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE ) 
+			count = 0
 			
 			if os.path.isdir(os.path.join(self.SettingsObj.ROIPATH,"SavedImages"))==False:
 				os.mkdir(os.path.join(self.SettingsObj.ROIPATH,"SavedImages"))
@@ -299,6 +334,8 @@ class MyPanel1 ( wx.Panel ):
 							shutil.copy(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG",file),os.path.join(self.SettingsObj.ROIPATH,"SavedImages",self.CurrentPatientID,DTTag,"SavePNG", file))
 							if os.path.isfile(os.path.join(self.SettingsObj.ROIPATH,"SavedImages",self.CurrentPatientID,DTTag,"SavePNG", file)):
 								os.remove(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG",file))
+							count+=1
+							dialog.Update(count)
 				except:
 					pass
 
@@ -311,8 +348,12 @@ class MyPanel1 ( wx.Panel ):
 							shutil.copy(os.path.join(self.SettingsObj.ROOTPATH,"SaveRaw",file),os.path.join(self.SettingsObj.ROIPATH,"SavedImages",self.CurrentPatientID,DTTag,"SaveRaw", file))
 							if os.path.isfile(os.path.join(self.SettingsObj.ROIPATH,"SavedImages",self.CurrentPatientID,DTTag,"SaveRaw", file)):
 								os.remove(os.path.join(self.SettingsObj.ROOTPATH,"SaveRaw",file))
+							count +=1
+							dialog.Update(count)
 				except:
 					pass
+					
+			dialog.Destroy()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------
 	def SearchPatient(self,evt):
 		if self.CurrentPatientID!="none":
@@ -353,6 +394,8 @@ class MyPanel1 ( wx.Panel ):
 			self.MyLog("SearchPatient","Exception")
 			self.m_button1.Enable()
 			pass
+
+		self.SetFocusIgnoringChildren() #Necessary for OnMouseWheel() function
 #-------------------------------------------------------------------------------------------------------------------------------------------------------
 	def PrescriptionChoice(self,evt):
 		ID = self.m_choice1.GetCurrentSelection()
@@ -452,6 +495,7 @@ class MyPanel1 ( wx.Panel ):
 		self.m_button2.Disable()
 		self.m_choice1.Disable()
 		self.m_textCtrl1.Disable()
+		self.TimeTravelActivated = False
 		self.Controller.CallStartAcquisition()
 #----------------------------------------------------------------------------------------------------------------------------------------------------
 	def OnStop(self,evt):
@@ -462,11 +506,20 @@ class MyPanel1 ( wx.Panel ):
 		self.m_button2.Enable()
 		self.m_choice1.Enable()		
 		self.m_textCtrl1.Enable()
+
+		self.TimeTravelActivated = True
+		if len(self.PNGFileList)>5:
+			self.SetFocusIgnoringChildren()
+			self.PNGIndex = len(self.PNGFileList)-1
+		self.MyLog("OnStop: len(self.PNGFileList)",str(len(self.PNGFileList)))
+
 		self.Controller.CallStopAcquisition()
 				
 		self.MyOpenGL.CurrentGLIm = np.zeros((512,512,4),dtype=np.uint8)
 		self.MyOpenGL.OnIDLE()
-
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+	#def ScanPNGs(self):
+	  #  AllFiles = os.listdir(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG"))
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 	def LaunchProgressDialog(self,NbSec,mess="Background acquisition in Progress ..."):
 		dialog = wx.ProgressDialog("Lecture en cours", mess, NbSec, style=wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE ) 
@@ -526,12 +579,6 @@ class MyPanel1 ( wx.Panel ):
 		if self.DebugLvl==2079:
 
 			self.MyOpenGL.CurrentGLIm = np.random.randint(0,255,size=(512,512,4),dtype=np.uint8)
-			#~ CurrentGLIm = np.fromfile("147646_20150121150333_1.VESSIE",dtype=np.uint8)
-			#~ CurrentGLIm = CurrentGLIm.reshape(1,512,512)
-			#~ self.MyOpenGL.CurrentGLIm[:,:,0] = CurrentGLIm[0,:,:]
-			#~ self.MyOpenGL.CurrentGLIm[:,:,1] = CurrentGLIm[0,:,:]
-			#~ self.MyOpenGL.CurrentGLIm[:,:,2] = CurrentGLIm[0,:,:]
-			#~ self.MyOpenGL.CurrentGLIm[:,:,3] = CurrentGLIm[0,:,:]			
 
 		if self.DebugLvl!=2079 and self.Controller.CalibObj.ImCount>self.DisplayedImCount:
 
@@ -586,6 +633,7 @@ class MyPanel1 ( wx.Panel ):
 							self.MyOpenGL.CurrentGLIm[511-y,511-x,2] = int(self.MyOpenGL.CurrentGLIm[511-y,511-x,2]*Transparency + int(v_color[2])*(1-Transparency))
 				self.MyOpenGL.CurrentGLIm = np.fliplr(self.MyOpenGL.CurrentGLIm)
 				self.DisplayedImCount = self.Controller.CalibObj.ImCount
+				self.m_textCtrl2.SetValue(str(self.DisplayedImCount))
 				
 			except:
 				self.MyOpenGL.CurrentGLIm[:,:,0] = 0
@@ -601,9 +649,10 @@ class MyPanel1 ( wx.Panel ):
 				ImTemp[:,:,1] = self.MyOpenGL.CurrentGLIm[::-1,:,1]
 				ImTemp[:,:,2] = self.MyOpenGL.CurrentGLIm[::-1,:,2]
 				ImTemp[:,:,3] = self.MyOpenGL.CurrentGLIm[::-1,:,3]
-				im = PIL.Image.fromarray(ImTemp,"RGBA")
-				fname = str(self.Controller.CalibObj.ImCount) + "_" + str(LastROIAngle) + ".png"
+				im = Image.fromarray(ImTemp,"RGBA")
+				fname = str(self.CurrentPatientID)+"_"+str(self.Controller.CalibObj.ImCount) + "_" + str(LastROIAngle) + ".png"
 				im.save(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG",fname))
+				self.PNGFileList.append(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG",fname))
 
 		self.MyOpenGL.OnIDLE()
 #---------------------------------------------------------------------------------------------------------------------------------------------------

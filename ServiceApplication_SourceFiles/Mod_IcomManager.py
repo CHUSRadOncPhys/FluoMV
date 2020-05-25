@@ -27,8 +27,8 @@ class IcomManager:
 		self.TimeStampMax = 0
 		
 		#***Functions***
-		self.ClearLogs()
-		self.MyLog("Init:",self.FilePath)
+		#~ self.ClearLogs()
+		self.MyLog("Init:",self.FilePath,level=2)
 #--------------------------------------------------------------------------------------------------------------------------------------------
 	def ClearLogs(self):
 		try:
@@ -80,7 +80,7 @@ class IcomManager:
 			return False, None
 #-----------------------------------------------------------------------------------------------------------------------------
 	def FetchInfo(self,StartTime,StopTime): #Fill iCom info lists between StartTime and StopTime
-		self.MyLog("Fetch",self.FilePath,level=1)
+		self.MyLog("Fetch",self.FilePath,level=2)
 		if os.path.isfile(self.FilePath):
 			
 			f = open(self.FilePath)
@@ -193,7 +193,7 @@ class IcomManager:
 					if  Lines[k].find("Date")!=-1:
 						LastValidLine = len(Lines) + k -1
 						break
-				self.MyLog( "Update:LastValidLine",str(LastValidLine))
+				self.MyLog( "Update:LastValidLine",str(LastValidLine),level=2)
 				
 				
 				for k in range(self.LastLine,LastValidLine):
@@ -203,15 +203,15 @@ class IcomManager:
 						info = filter(None,info)
 						self.TimeStampList.append(int(info[1]))
 						self.LastLine = k +1
-						self.MyLog("Update:self.LastLine",str(self.LastLine))
+						self.MyLog("Update:self.LastLine",str(self.LastLine),level=2)
 						
 						
 						jmax = 0
 						for j in range(1,10):
 							if (k+j)<LastValidLine and Lines[k+j].find("Date")!=-1:
 								jmax = j-1
-						self.MyLog("Update:k+jmax-1",str(k+jmax-1))
-						self.MyLog("LastIncludedLine",Lines[k+jmax-1])
+						self.MyLog("Update:k+jmax-1",str(k+jmax-1),level=2)
+						self.MyLog("LastIncludedLine",Lines[k+jmax-1],level=2)
 						
 						for j in range(2,jmax):
 							#~ if Lines[k+j].find("Date")!=-1:

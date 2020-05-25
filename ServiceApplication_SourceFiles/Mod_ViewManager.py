@@ -14,7 +14,7 @@ class ViewManager:
 		self.TimeStampList = list()
 		
 		#***Functions***
-		self.ClearLogs()
+		#~ self.ClearLogs()
 		self.GetAcquisitionList()
 #--------------------------------------------------------------------------------------------------------------------------------------------
 	def ClearLogs(self):
