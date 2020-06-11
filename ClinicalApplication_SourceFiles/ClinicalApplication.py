@@ -131,7 +131,7 @@ class MyPanel1 ( wx.Panel ):
 		bSizer3.Add( self.m_textCtrl1, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL, 5 )
 		
 		#~ self.m_button1 = wx.Button( self, wx.ID_ANY, u"SEARCH", wx.DefaultPosition, wx.DefaultSize, 0 )
-		self.m_button1 = wx.Button( self, wx.ID_ANY, u"RECHERCHER", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_button1 = wx.Button( self, wx.ID_ANY, u"SEARCH", wx.DefaultPosition, wx.DefaultSize, 0 )
 		self.m_button1.Bind(wx.EVT_BUTTON,self.SearchPatient)
 		bSizer3.Add( self.m_button1, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 		
@@ -522,7 +522,7 @@ class MyPanel1 ( wx.Panel ):
 	  #  AllFiles = os.listdir(os.path.join(self.SettingsObj.ROOTPATH,"SavePNG"))
 #---------------------------------------------------------------------------------------------------------------------------------------------------
 	def LaunchProgressDialog(self,NbSec,mess="Background acquisition in Progress ..."):
-		dialog = wx.ProgressDialog("Lecture en cours", mess, NbSec, style=wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE ) 
+		dialog = wx.ProgressDialog("Acquiring ...", mess, NbSec, style=wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME | wx.PD_AUTO_HIDE ) 
 		count=0
 		for k in range(0,NbSec):
 			count+=1
@@ -541,8 +541,6 @@ class MyPanel1 ( wx.Panel ):
 				else:
 					CREATE_NO_WINDOW = 0x08000000
 					subprocess.call("main.exe",creationflags=CREATE_NO_WINDOW)
-				
-				os.chdir(os.path.join(self.SettingsObj.ROOTPATH,"EPID_Fluoroscopie","dist"))
 				
 			except:
 				self.MyLog("StartPyComView","Exception")
